@@ -1,0 +1,26 @@
+{
+  "name": "message-services",
+  "version": "1.0.0",
+  "description": "Node.js. Message services (Unit 3. Final exercise). Service and Process Programming in 2º DAM Semipresencial - IES San Vicente.",
+  "main": "message-services.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/josejpg/Message-Service-App.git"
+  },
+  "author": "Jose J. Pardines Garcia",
+  "license": "GNU General Public License v3.0",
+  "bugs": {
+    "url": "https://github.com/josejpg/Message-Service-App/issues"
+  },
+  "homepage": "https://github.com/josejpg/Message-Service-App#readme",
+  "dependencies": {
+    "body-parser": "^1.18.3",
+    "express": "^4.16.4",
+    "jsonwebtoken": "^8.4.0",
+    "moment": "^2.23.0",
+    "mongoose": "^5.4.4"
+  }
+}
