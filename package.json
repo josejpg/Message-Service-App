@@ -15,5 +15,12 @@
   "bugs": {
     "url": "https://github.com/josejpg/Message-Service-App/issues"
   },
-  "homepage": "https://github.com/josejpg/Message-Service-App#readme"
+  "homepage": "https://github.com/josejpg/Message-Service-App#readme",
+  "dependencies": {
+    "body-parser": "^1.18.3",
+    "express": "^4.16.4",
+    "jsonwebtoken": "^8.4.0",
+    "moment": "^2.23.0",
+    "mongoose": "^5.4.4"
+  }
 }
