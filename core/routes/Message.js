@@ -1,6 +1,11 @@
 // Requires
 const express = require( 'express' );
 const bodyParser = require( 'body-parser' );
+const fs = require( 'fs' );
+const moment = require( 'moment' );
+
+//Utils
+const myFS = require( '../utils/files' );
 
 // Models
 const User = require( '../models/User' );
@@ -14,6 +19,7 @@ const app = express();
 app.use( bodyParser.urlencoded( { extended: true } ) );
 app.use( bodyParser.json() );
 const router = express.Router();
+const baseImagePath = './images/message';
 
 /**
  * POST: Messages.
@@ -29,32 +35,123 @@ const router = express.Router();
  */
 router.post( '/:toUserId', ( req, res ) => {
 
-	let message = new Message();
-	message.from = req.body.from;
-	message.to = req.body.to;
-	message.message = req.body.message;
-	message.image = req.body.image;
-	message.sent = req.body.sent;
+	const token = req.headers[ 'authorization' ];
+	const dataToken = Token.validateToken( token );
 
-	message.save( ( err ) => {
-		if ( err ) {
-			res.json( { ok: false, message: err } );
+	if ( dataToken ) {
+
+		if ( dataToken.exp < new Date().getTime() ) {
+			const d = new moment();
+			const message = new Message();
+			let imagePath = `${ baseImagePath }/${ d.format( 'YYYY/MM/DD' ) }`;
+			myFS.mkdir( imagePath );
+
+			message.from = req.body.from;
+			message.to = req.params.toUserId;
+			message.message = req.body.message;
+			message.image = 'empty';
+			message.sent = new moment( req.body.sent, 'dd/MM/YYYY HH:mm:ss' );
+
+
+			message.save().then( ( result ) => {
+
+				// First save user data, and later save de image with de _id as a image's name.
+				imagePath += `/${ result._id }.jpg`;
+				fs.writeFileSync( imagePath, Buffer.from( req.body.image, 'base64' ) );
+				message.image = imagePath;
+
+				message.save().then( () => {
+
+					let message = { ok: true };
+					res.status( 200 ).send( message );
+
+				} ).catch( err => {
+
+					let data = { ok: false, message: "Image couldn't be registered" };
+					console.log( req.body );
+					console.log( err );
+					res.status( 400 ).send( data );
+
+				} );
+
+			} ).catch( err => {
+
+				let data = { ok: false, message: "Message couldn't be sent" };
+				console.log( req.body );
+				console.log( err );
+				res.status( 400 ).send( data );
+
+			} );
+
+		} else {
+
+			let data = { ok: false, message: "Token expired" };
+			res.status( 403 ).send( data );
+
 		}
 
-		res.json( { ok: true } );
-	} );
+	} else {
 
+		let data = { ok: false, message: "Token is not correct" };
+		res.status( 403 ).send( data );
+
+	}
 } );
 
 /**
  * DELETE: Messages.
- * Request: { "message": String, "image": String, "sent": Date }
  * Response: { "ok": Boolean }
  * Response Error: { "ok": Boolean, "error": String }
  *
  * This service deletes the message matching the id received.
  */
-router.delete( '/:id', ( req, res ) => {
+router.delete( '/:_id', ( req, res ) => {
+
+	const token = req.headers[ 'authorization' ];
+	const dataToken = Token.validateToken( token );
+
+	if ( dataToken ) {
+
+		if ( dataToken.exp < new Date().getTime() ) {
+
+			Message.findById( req.params._id ).then( dataMessage => {
+
+				// Remove older image and save new data
+				myFS.rmdir( dataMessage.image );
+				dataMessage.delete( { "_id": req.params._id } ).then( () => {
+
+					let data = { ok: true };
+					res.status( 200 ).send( data );
+
+				} ).catch( err => {
+
+					let data = { ok: false, message: "Error while deleting. Try again in a few minutes." };
+					console.log( err );
+					res.status( 500 ).send( data );
+
+				} );
+
+			} ).catch( err => {
+
+				let data = { ok: false, message: "Message not found" };
+				console.log( err );
+				res.status( 404 ).send( data );
+
+			} );
+
+		} else {
+
+			let data = { ok: false, message: "Token expired" };
+			res.status( 403 ).send( data );
+
+		}
+
+	} else {
+
+		let data = { ok: false, message: "Token is not correct" };
+		res.status( 403 ).send( data );
+
+	}
 
 } );
 
@@ -67,6 +164,57 @@ router.delete( '/:id', ( req, res ) => {
  * This service returns all messages that were sent to the user that is performing the request.
  */
 router.get( '/', ( req, res ) => {
+
+	const token = req.headers[ 'authorization' ];
+	const dataToken = Token.validateToken( token );
+
+	if ( dataToken ) {
+
+		if ( dataToken.exp < new Date().getTime() ) {
+			User
+				.find( { name: dataToken.login } )
+				.then( dataUser => {
+
+					Message
+						.find( { from: dataUser[ 0 ]._id } )
+						.then( dataMessages => {
+
+							let message = {
+								ok: true,
+								messages: dataMessages
+							};
+							res.status( 200 ).send( message );
+
+						} ).catch( err => {
+
+							let data = { ok: false, message: "Error recovering messages. Try again in a few minutes" };
+							console.log( err );
+							res.status( 500 ).send( data );
+
+						} );
+
+
+				} ).catch( err => {
+
+					let data = { ok: false, message: "Error recovering user. Try again in a few minutes" };
+					console.log( err );
+					res.status( 500 ).send( data );
+
+				} );
+
+		} else {
+
+			let data = { ok: false, message: "Token expired" };
+			res.status( 403 ).send( data );
+
+		}
+
+	} else {
+
+		let data = { ok: false, message: "Token is not correct" };
+		res.status( 403 ).send( data );
+
+	}
 
 } );
 
