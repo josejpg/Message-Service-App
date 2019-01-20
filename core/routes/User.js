@@ -1,9 +1,12 @@
 // Requires
 const express = require( 'express' );
 const bodyParser = require( 'body-parser' );
+const fs = require( 'fs' );
+const moment = require( 'moment' );
 
 //Utils
-const md5 = require( '../utils/encryptMD5' );
+const base64 = require( '../utils/encryptBase64' );
+const myFS = require( '../utils/files' );
 
 
 // Models
@@ -14,9 +17,10 @@ const Token = require( '../services/Token' );
 
 // Config
 const app = express();
-app.use( bodyParser.urlencoded( { extended: true } ) );
-app.use( bodyParser.json() );
+app.use( bodyParser.json( { limit: '50mb', extended: true } ) );
+app.use( bodyParser.urlencoded( { limit: '50mb', extended: true } ) );
 const router = express.Router();
+const baseImagePath = './images/user';
 
 /**
  * POST: Login.
@@ -34,7 +38,7 @@ router.post( '/login', ( req, res ) => {
 
 	let user = new User();
 	user.name = req.body.name;
-	user.password = md5.encryptText( req.body.password );
+	user.password = base64.encryptText( req.body.password );
 
 	User
 		.find( { name: user.name, password: user.password } )
@@ -43,7 +47,7 @@ router.post( '/login', ( req, res ) => {
 			if ( dataUsers && dataUsers.length > 0 ) {
 
 				const dataUser = dataUsers[ 0 ];
-				if ( md5.compareHash( req.body.password, dataUser.password ) ) {
+				if ( base64.compareHash( req.body.password, dataUser.password ) ) {
 
 					let message = {
 						ok: true,
@@ -92,19 +96,39 @@ router.post( '/login', ( req, res ) => {
  */
 router.post( '/register', ( req, res ) => {
 
-	let user = new User();
+	const user = new User();
+	const d = new moment();
+	let imagePath = `${ baseImagePath }/${ d.format( 'YYYY/MM/DD' ) }`;
+	myFS.mkdir( imagePath );
 	user.name = req.body.name;
-	user.password = md5.encryptText( req.body.password );
-	user.image = req.body.image;
+	user.password = base64.encryptText( req.body.password );
+	user.image = 'empty';
 
-	user.save().then( () => {
+	user.save().then( ( result ) => {
 
-		let message = { ok: true };
-		res.status( 200 ).send( message );
+		// First save user data, and later save de image with de _id as a image's name.
+		imagePath += `/${ result._id }.jpg`;
+		fs.writeFileSync( imagePath, Buffer.from( req.body.image, 'base64' ) );
+		user.image = imagePath;
+
+		user.save().then( () => {
+
+			let message = { ok: true };
+			res.status( 200 ).send( message );
+
+		} ).catch( err => {
+
+			let data = { ok: false, message: "Image couldn't be registered" };
+			console.log( req.body );
+			console.log( err );
+			res.status( 400 ).send( data );
+
+		} );
 
 	} ).catch( err => {
 
 		let data = { ok: false, message: "User couldn't be registered" };
+		console.log( req.body );
 		console.log( err );
 		res.status( 400 ).send( data );
 
@@ -123,35 +147,62 @@ router.post( '/register', ( req, res ) => {
  */
 router.put( '/:_id', ( req, res ) => {
 
-	const newDataUser = new User();
-	newDataUser.name = req.body.name;
-	newDataUser.password = req.body.password;
-	newDataUser.image = req.body.image;
+	const token = req.headers[ 'authorization' ];
+	const dataToken = Token.validateToken( token );
 
-	User.findById( req.params._id ).then( dataUser => {
+	if ( dataToken ) {
 
-		// Generate a new “.jpg” file where the new avatar image will be saved
-		newDataUser.save().then( () => {
+		if ( dataToken.exp < new Date().getTime() ) {
 
-			let data = { ok: true };
-			res.status( 200 ).send( data );
+			const newDataUser = new User();
+			const d = new moment();
+			let imagePath = `${ baseImagePath }/${ d.format( 'YYYY/MM/DD' ) }`;
+			myFS.mkdir( imagePath );
+			newDataUser.name = req.body.name;
+			newDataUser.password = base64.encryptText( req.body.password );
+			imagePath += `/${ req.params._id }.jpg`;
+			fs.writeFileSync( imagePath, Buffer.from( req.body.image, 'base64' ) );
 
-		} ).catch( err => {
+			newDataUser.image = imagePath;
 
-			let data = { ok: false, message: "Error while updating. Try again in a few minutes." };
-			console.log( err );
-			res.status( 500 ).send( data );
+			User.findById( req.params._id ).then( oldDataUser => {
 
-		} );
+				// Remove older image and save new data
+				myFS.rmdir( oldDataUser.image );
+				newDataUser.update( { "_id": req.params._id } ).then( () => {
 
-	} ).catch( err => {
+					let data = { ok: true };
+					res.status( 200 ).send( data );
 
-		let data = { ok: false, message: "User not found" };
-		console.log( err );
-		res.status( 404 ).send( data );
+				} ).catch( err => {
 
-	} );
+					let data = { ok: false, message: "Error while updating. Try again in a few minutes." };
+					console.log( err );
+					res.status( 500 ).send( data );
 
+				} );
+
+			} ).catch( err => {
+
+				let data = { ok: false, message: "User not found" };
+				console.log( err );
+				res.status( 404 ).send( data );
+
+			} );
+
+		} else {
+
+			let data = { ok: false, message: "Token expired" };
+			res.status( 403 ).send( data );
+
+		}
+
+	} else {
+
+		let data = { ok: false, message: "Token is not correct" };
+		res.status( 403 ).send( data );
+
+	}
 
 } );
 
@@ -169,7 +220,6 @@ router.get( '/', ( req, res ) => {
 
 	if ( dataToken ) {
 
-		console.log( dataToken );
 		if ( dataToken.exp < new Date().getTime() ) {
 			User
 				.find()
@@ -188,6 +238,7 @@ router.get( '/', ( req, res ) => {
 				res.status( 500 ).send( data );
 
 			} );
+
 		} else {
 
 			let data = { ok: false, message: "Token expired" };
