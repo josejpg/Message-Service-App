@@ -177,6 +177,8 @@ router.get( '/', ( req, res ) => {
 
 					Message
 						.find( { from: dataUser[ 0 ]._id } )
+						.populate( 'to' )
+						.populate( 'from' )
 						.then( dataMessages => {
 
 							let message = {
