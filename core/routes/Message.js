@@ -67,7 +67,7 @@ router.post( '/:toUserId', ( req, res ) => {
 
 				} ).catch( err => {
 
-					let data = { ok: false, message: "Image couldn't be registered" };
+					let data = { ok: false, error: "Image couldn't be registered" };
 					console.log( req.body );
 					console.log( err );
 					res.status( 400 ).send( data );
@@ -76,7 +76,7 @@ router.post( '/:toUserId', ( req, res ) => {
 
 			} ).catch( err => {
 
-				let data = { ok: false, message: "Message couldn't be sent" };
+				let data = { ok: false, error: "Message couldn't be sent" };
 				console.log( req.body );
 				console.log( err );
 				res.status( 400 ).send( data );
@@ -85,14 +85,14 @@ router.post( '/:toUserId', ( req, res ) => {
 
 		} else {
 
-			let data = { ok: false, message: "Token expired" };
+			let data = { ok: false, error: "Token expired" };
 			res.status( 403 ).send( data );
 
 		}
 
 	} else {
 
-		let data = { ok: false, message: "Token is not correct" };
+		let data = { ok: false, error: "Token is not correct" };
 		res.status( 403 ).send( data );
 
 	}
@@ -125,7 +125,7 @@ router.delete( '/:_id', ( req, res ) => {
 
 				} ).catch( err => {
 
-					let data = { ok: false, message: "Error while deleting. Try again in a few minutes." };
+					let data = { ok: false, error: "Error while deleting. Try again in a few minutes." };
 					console.log( err );
 					res.status( 500 ).send( data );
 
@@ -133,7 +133,7 @@ router.delete( '/:_id', ( req, res ) => {
 
 			} ).catch( err => {
 
-				let data = { ok: false, message: "Message not found" };
+				let data = { ok: false, error: "Message not found" };
 				console.log( err );
 				res.status( 404 ).send( data );
 
@@ -141,14 +141,14 @@ router.delete( '/:_id', ( req, res ) => {
 
 		} else {
 
-			let data = { ok: false, message: "Token expired" };
+			let data = { ok: false, error: "Token expired" };
 			res.status( 403 ).send( data );
 
 		}
 
 	} else {
 
-		let data = { ok: false, message: "Token is not correct" };
+		let data = { ok: false, error: "Token is not correct" };
 		res.status( 403 ).send( data );
 
 	}
@@ -189,7 +189,7 @@ router.get( '/', ( req, res ) => {
 
 						} ).catch( err => {
 
-							let data = { ok: false, message: "Error recovering messages. Try again in a few minutes" };
+							let data = { ok: false, error: "Error recovering messages. Try again in a few minutes" };
 							console.log( err );
 							res.status( 500 ).send( data );
 
@@ -198,7 +198,7 @@ router.get( '/', ( req, res ) => {
 
 				} ).catch( err => {
 
-					let data = { ok: false, message: "Error recovering user. Try again in a few minutes" };
+					let data = { ok: false, error: "Error recovering user. Try again in a few minutes" };
 					console.log( err );
 					res.status( 500 ).send( data );
 
@@ -206,14 +206,14 @@ router.get( '/', ( req, res ) => {
 
 		} else {
 
-			let data = { ok: false, message: "Token expired" };
+			let data = { ok: false, error: "Token expired" };
 			res.status( 403 ).send( data );
 
 		}
 
 	} else {
 
-		let data = { ok: false, message: "Token is not correct" };
+		let data = { ok: false, error: "Token is not correct" };
 		res.status( 403 ).send( data );
 
 	}
