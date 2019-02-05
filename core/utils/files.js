@@ -14,7 +14,7 @@ const mkdir = ( path ) => {
 			if( newPath !== '.' ) {
 				path += `/${ newPath }`;
 				if ( !fs.existsSync( path ) ) {
-					fs.mkdirSync( path, 0766, ( err ) => {
+					fs.mkdirSync( path, 766, ( err ) => {
 						if ( err ) {
 							console.log( err );
 							return false;
@@ -35,13 +35,9 @@ const mkdir = ( path ) => {
  */
 const rmdir = ( path ) => {
 	if ( !fs.existsSync( path ) ) {
-		fs.unlink( path, ( err ) => {
-			if ( err ) {
-				console.log( err );
-				return false;
-			}
-			return true;
-		});
+		fs.unlinkSync( path )
+			.then( (e) = {} )
+			.catch( err => console.log( err ) );
 	}
 };
 

@@ -17,8 +17,17 @@ const Token = require( '../services/Token' );
 
 // Config
 const app = express();
-app.use( bodyParser.json( { limit: '50mb', extended: true } ) );
-app.use( bodyParser.urlencoded( { limit: '50mb', extended: true } ) );
+app.use( bodyParser.json( {
+	limit: '50mb',
+	extended: true,
+	type:'application/json'
+} ) );
+app.use( bodyParser.urlencoded( {
+	limit: '50mb',
+	extended: true,
+	parameterLimit: 50000,
+	type:'application/x-www-form-urlencoding'
+} ) );
 const router = express.Router();
 const baseImagePath = './images/user';
 
@@ -51,23 +60,23 @@ router.post( '/login', ( req, res ) => {
 
 					let message = {
 						ok: true,
-						token: Token.generateToken( dataUser.name ),
+						token: Token.generateToken( dataUser._id ),
 						name: dataUser.name,
 						image: dataUser.image,
 					};
-					res.send( message );
+					res.status( 200 ).send( message );
 
 				} else {
 
 					let data = { ok: false, error: "User or password is invalid" };
-					res.send( data );
+					res.status( 200 ).send( data );
 
 				}
 
 			} else {
 
 				let data = { ok: false, error: "User or password is invalid" };
-				res.send( data );
+				res.status( 200 ).send( data );
 
 			}
 
@@ -75,7 +84,7 @@ router.post( '/login', ( req, res ) => {
 
 		let data = { ok: false, error: "User or password incorrect" };
 		console.log( err );
-		res.send( data );
+		res.status( 200 ).send( data );
 
 	} );
 
@@ -119,18 +128,16 @@ router.post( '/register', ( req, res ) => {
 		} ).catch( err => {
 
 			let data = { ok: false, error: "Image couldn't be registered" };
-			console.log( req.body );
 			console.log( err );
-			res.status( 400 ).send( data );
+			res.status( 200 ).send( data );
 
 		} );
 
 	} ).catch( err => {
 
 		let data = { ok: false, error: "User couldn't be registered" };
-		console.log( req.body );
 		console.log( err );
-		res.status( 400 ).send( data );
+		res.status( 200 ).send( data );
 
 	} );
 
@@ -147,29 +154,27 @@ router.post( '/register', ( req, res ) => {
  */
 router.put( '/:_id', ( req, res ) => {
 
-	const token = req.headers[ 'authorization' ];
+	const token = req.headers[ 'authorization' ].replace( 'Bearer ', '' );
 	const dataToken = Token.validateToken( token );
 
 	if ( dataToken ) {
 
 		if ( dataToken.exp < new Date().getTime() ) {
 
-			const newDataUser = new User();
 			const d = new moment();
 			let imagePath = `${ baseImagePath }/${ d.format( 'YYYY/MM/DD' ) }`;
 			myFS.mkdir( imagePath );
-			newDataUser.name = req.body.name;
-			newDataUser.password = base64.encryptText( req.body.password );
-			imagePath += `/${ req.params._id }.jpg`;
-			fs.writeFileSync( imagePath, Buffer.from( req.body.image, 'base64' ) );
-
-			newDataUser.image = imagePath;
 
 			User.findById( req.params._id ).then( oldDataUser => {
 
+				imagePath += `/${ req.params._id }.jpg`;
+				fs.writeFileSync( imagePath, Buffer.from( req.body.image, 'base64' ) );
+
 				// Remove older image and save new data
 				myFS.rmdir( oldDataUser.image );
-				newDataUser.update( { "_id": req.params._id } ).then( () => {
+				User
+					.findOneAndUpdate( { "_id": req.params._id }, { $set: { image: imagePath } } )
+					.then( () => {
 
 					let data = { ok: true };
 					res.status( 200 ).send( data );

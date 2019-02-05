@@ -16,8 +16,17 @@ const Token = require( '../services/Token' );
 
 // Config
 const app = express();
-app.use( bodyParser.urlencoded( { extended: true } ) );
-app.use( bodyParser.json() );
+app.use( bodyParser.json( {
+    limit: '50mb',
+    extended: true,
+    type:'application/json'
+} ) );
+app.use( bodyParser.urlencoded( {
+    limit: '50mb',
+    extended: true,
+    parameterLimit: 50000,
+    type:'application/x-www-form-urlencoding'
+} ) );
 const router = express.Router();
 const baseImagePath = './images/message';
 
@@ -62,7 +71,7 @@ router.post( '/:toUserId', ( req, res ) => {
 
 				message.save().then( () => {
 
-					let message = { ok: true };
+					let message = { ok: true, message: message };
 					res.status( 200 ).send( message );
 
 				} ).catch( err => {
@@ -198,7 +207,7 @@ router.get( '/', ( req, res ) => {
 
 				} ).catch( err => {
 
-					let data = { ok: false, error: "Error recovering user. Try again in a few minutes" };
+					let data = { ok: false, error: "Error recovering messages. Try again in a few minutes" };
 					console.log( err );
 					res.status( 500 ).send( data );
 
