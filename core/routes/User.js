@@ -1,35 +1,35 @@
 // Requires
-const express = require( 'express' );
-const bodyParser = require( 'body-parser' );
-const fs = require( 'fs' );
-const moment = require( 'moment' );
+const express = require('express');
+const bodyParser = require('body-parser');
+const fs = require('fs');
+const moment = require('moment');
 
 //Utils
-const base64 = require( '../utils/encryptBase64' );
-const myFS = require( '../utils/files' );
+const base64 = require('../utils/encryptBase64');
+const myFS = require('../utils/files');
 
 
 // Models
-const User = require( '../models/User' );
+const User = require('../models/User');
 
 // Token
-const Token = require( '../services/Token' );
+const Token = require('../services/Token');
 
 // Config
 const app = express();
-app.use( bodyParser.json( {
-	limit: '50mb',
-	extended: true,
-	type:'application/json'
-} ) );
-app.use( bodyParser.urlencoded( {
-	limit: '50mb',
-	extended: true,
-	parameterLimit: 50000,
-	type:'application/x-www-form-urlencoding'
-} ) );
+app.use(bodyParser.json({
+    limit: '50mb',
+    extended: true,
+    type: 'application/json'
+}));
+app.use(bodyParser.urlencoded({
+    limit: '50mb',
+    extended: true,
+    parameterLimit: 50000,
+    type: 'application/x-www-form-urlencoding'
+}));
 const router = express.Router();
-const baseImagePath = './images/user';
+const baseImagePath = '/images/user';
 
 /**
  * POST: Login.
@@ -43,52 +43,52 @@ const baseImagePath = './images/user';
  * and the avatar image of the user.
  * If there’s an error in the login process, this service must return the following JSON
  */
-router.post( '/login', ( req, res ) => {
+router.post('/login', (req, res) => {
 
-	let user = new User();
-	user.name = req.body.name;
-	user.password = base64.encryptText( req.body.password );
+    let user = new User();
+    user.name = req.body.name;
+    user.password = base64.encryptText(req.body.password);
 
-	User
-		.find( { name: user.name, password: user.password } )
-		.then( dataUsers => {
+    User
+        .find({name: user.name, password: user.password})
+        .then(dataUsers => {
 
-			if ( dataUsers && dataUsers.length > 0 ) {
+            if (dataUsers && dataUsers.length > 0) {
 
-				const dataUser = dataUsers[ 0 ];
-				if ( base64.compareHash( req.body.password, dataUser.password ) ) {
+                const dataUser = dataUsers[0];
+                if (base64.compareHash(req.body.password, dataUser.password)) {
 
-					let message = {
-						ok: true,
-						token: Token.generateToken( dataUser._id ),
-						name: dataUser.name,
-						image: dataUser.image,
-					};
-					res.status( 200 ).send( message );
+                    let message = {
+                        ok: true,
+                        token: Token.generateToken(dataUser._id),
+                        name: dataUser.name,
+                        image: dataUser.image,
+                    };
+                    res.status(200).send(message);
 
-				} else {
+                } else {
 
-					let data = { ok: false, error: "User or password is invalid" };
-					res.status( 200 ).send( data );
+                    let data = {ok: false, error: "User or password is invalid"};
+                    res.status(200).send(data);
 
-				}
+                }
 
-			} else {
+            } else {
 
-				let data = { ok: false, error: "User or password is invalid" };
-				res.status( 200 ).send( data );
+                let data = {ok: false, error: "User or password is invalid"};
+                res.status(200).send(data);
 
-			}
+            }
 
-		} ).catch( err => {
+        }).catch(err => {
 
-		let data = { ok: false, error: "User or password incorrect" };
-		console.log( err );
-		res.status( 200 ).send( data );
+        let data = {ok: false, error: "User or password incorrect"};
+        console.log(err);
+        res.status(200).send(data);
 
-	} );
+    });
 
-} );
+});
 
 /**
  * POST: Register.
@@ -103,45 +103,45 @@ router.post( '/login', ( req, res ) => {
  * URL of the image, which will be referenced and displayed on the client side. Also keep in
  * mind that you should generate a unique name for each file.
  */
-router.post( '/register', ( req, res ) => {
+router.post('/register', (req, res) => {
 
-	const user = new User();
-	const d = new moment();
-	let imagePath = `${ baseImagePath }/${ d.format( 'YYYY/MM/DD' ) }`;
-	myFS.mkdir( imagePath );
-	user.name = req.body.name;
-	user.password = base64.encryptText( req.body.password );
-	user.image = 'empty';
+    const user = new User();
+    const d = new moment();
+    let imagePath = `${baseImagePath}/${d.format('YYYY/MM/DD')}`;
+    myFS.mkdir(imagePath);
+    user.name = req.body.name;
+    user.password = base64.encryptText(req.body.password);
+    user.image = 'empty';
 
-	user.save().then( ( result ) => {
+    user.save().then((result) => {
 
-		// First save user data, and later save de image with de _id as a image's name.
-		imagePath += `/${ result._id }.jpg`;
-		fs.writeFileSync( imagePath, Buffer.from( req.body.image, 'base64' ) );
-		user.image = imagePath;
+        // First save user data, and later save de image with de _id as a image's name.
+        imagePath += `/${result._id}.jpg`;
+        fs.writeFileSync('.' + imagePath, Buffer.from(req.body.image, 'base64'));
+        user.image = imagePath;
 
-		user.save().then( () => {
+        user.save().then(() => {
 
-			let message = { ok: true };
-			res.status( 200 ).send( message );
+            let message = {ok: true};
+            res.status(200).send(message);
 
-		} ).catch( err => {
+        }).catch(err => {
 
-			let data = { ok: false, error: "Image couldn't be registered" };
-			console.log( err );
-			res.status( 200 ).send( data );
+            let data = {ok: false, error: "Image couldn't be registered"};
+            console.log(err);
+            res.status(200).send(data);
 
-		} );
+        });
 
-	} ).catch( err => {
+    }).catch(err => {
 
-		let data = { ok: false, error: "User couldn't be registered" };
-		console.log( err );
-		res.status( 200 ).send( data );
+        let data = {ok: false, error: "User couldn't be registered"};
+        console.log(err);
+        res.status(200).send(data);
 
-	} );
+    });
 
-} );
+});
 
 /**
  * PUT: Users.
@@ -152,64 +152,64 @@ router.post( '/register', ( req, res ) => {
  * After receiving the image, remember that you must generate a new file so that the string
  * containing the path is also updated in the database.
  */
-router.put( '/:_id', ( req, res ) => {
+router.put('/:_id', (req, res) => {
 
-	const token = req.headers[ 'authorization' ].replace( 'Bearer ', '' );
-	const dataToken = Token.validateToken( token );
+    const token = req.headers['authorization'].replace('Bearer ', '');
+    const dataToken = Token.validateToken(token);
 
-	if ( dataToken ) {
+    if (dataToken) {
 
-		if ( dataToken.exp < new Date().getTime() ) {
+        if (dataToken.exp < new Date().getTime()) {
 
-			const d = new moment();
-			let imagePath = `${ baseImagePath }/${ d.format( 'YYYY/MM/DD' ) }`;
-			myFS.mkdir( imagePath );
+            const d = new moment();
+            let imagePath = `${baseImagePath}/${d.format('YYYY/MM/DD')}`;
+            myFS.mkdir('.' + imagePath);
 
-			User.findById( req.params._id ).then( oldDataUser => {
+            User.findById(req.params._id).then(oldDataUser => {
 
-				imagePath += `/${ req.params._id }.jpg`;
-				fs.writeFileSync( imagePath, Buffer.from( req.body.image, 'base64' ) );
+                imagePath += `/${req.params._id}.jpg`;
+                fs.writeFileSync('.' + imagePath, Buffer.from(req.body.image, 'base64'));
 
-				// Remove older image and save new data
-				myFS.rmdir( oldDataUser.image );
-				User
-					.findOneAndUpdate( { "_id": req.params._id }, { $set: { image: imagePath } } )
-					.then( () => {
+                // Remove older image and save new data
+                myFS.rmdir('.' + oldDataUser.image);
+                User
+                    .findOneAndUpdate({"_id": req.params._id}, {$set: {image: imagePath}})
+                    .then(() => {
 
-					let data = { ok: true };
-					res.status( 200 ).send( data );
+                        let data = {ok: true};
+                        res.status(200).send(data);
 
-				} ).catch( err => {
+                    }).catch(err => {
 
-					let data = { ok: false, error: "Error while updating. Try again in a few minutes." };
-					console.log( err );
-					res.status( 500 ).send( data );
+                    let data = {ok: false, error: "Error while updating. Try again in a few minutes."};
+                    console.log(err);
+                    res.status(500).send(data);
 
-				} );
+                });
 
-			} ).catch( err => {
+            }).catch(err => {
 
-				let data = { ok: false, error: "User not found" };
-				console.log( err );
-				res.status( 404 ).send( data );
+                let data = {ok: false, error: "User not found"};
+                console.log(err);
+                res.status(404).send(data);
 
-			} );
+            });
 
-		} else {
+        } else {
 
-			let data = { ok: false, error: "Token expired" };
-			res.status( 403 ).send( data );
+            let data = {ok: false, error: "Token expired"};
+            res.status(403).send(data);
 
-		}
+        }
 
-	} else {
+    } else {
 
-		let data = { ok: false, error: "Token is not correct" };
-		res.status( 403 ).send( data );
+        let data = {ok: false, error: "Token is not correct"};
+        res.status(403).send(data);
 
-	}
+    }
 
-} );
+});
 
 /**
  * GET: Users.
@@ -218,46 +218,46 @@ router.put( '/:_id', ( req, res ) => {
  *
  * It will return an array with all the registered users which are stored in the database.
  */
-router.get( '/', ( req, res ) => {
+router.get('/', (req, res) => {
 
-	const token = req.headers[ 'authorization' ];
-	const dataToken = Token.validateToken( token );
+    const token = req.headers['authorization'].replace('Bearer ', '');
+    const dataToken = Token.validateToken(token);
 
-	if ( dataToken ) {
+    if (dataToken) {
 
-		if ( dataToken.exp < new Date().getTime() ) {
-			User
-				.find()
-				.then( dataUsers => {
+        if (dataToken.exp < new Date().getTime()) {
+            User
+                .find()
+                .then(dataUsers => {
 
-					let message = {
-						ok: true,
-						users: dataUsers
-					};
-					res.status( 200 ).send( message );
+                    let message = {
+                        ok: true,
+                        users: dataUsers
+                    };
+                    res.status(200).send(message);
 
-				} ).catch( err => {
+                }).catch(err => {
 
-				let data = { ok: false, error: "Error recovering users. Try again in a few minutes" };
-				console.log( err );
-				res.status( 500 ).send( data );
+                let data = {ok: false, error: "Error recovering users. Try again in a few minutes"};
+                console.log(err);
+                res.status(500).send(data);
 
-			} );
+            });
 
-		} else {
+        } else {
 
-			let data = { ok: false, error: "Token expired" };
-			res.status( 403 ).send( data );
+            let data = {ok: false, error: "Token expired"};
+            res.status(403).send(data);
 
-		}
+        }
 
-	} else {
+    } else {
 
-		let data = { ok: false, error: "Token is not correct" };
-		res.status( 403 ).send( data );
+        let data = {ok: false, error: "Token is not correct"};
+        res.status(403).send(data);
 
-	}
+    }
 
-} );
+});
 
 module.exports = router;

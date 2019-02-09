@@ -1,5 +1,5 @@
 // Requires
-const jwt = require( 'jsonwebtoken' );
+const jwt = require('jsonwebtoken');
 
 // Config
 const secretWord = 'DAMsecret';
@@ -10,7 +10,7 @@ const secretWord = 'DAMsecret';
  * @returns {string}
  */
 const generateToken = login => {
-	return jwt.sign( { login: login }, secretWord, { expiresIn: "2 hours" } );
+    return jwt.sign({login: login}, secretWord, {expiresIn: "2 hours"});
 };
 
 /**
@@ -18,8 +18,8 @@ const generateToken = login => {
  * @param token
  * @returns {string}
  */
-const renewToken = ( token ) => {
-	return jwt.sign( { login: this.validateToken( token ) }, secretWord, { expiresIn: "2 hours" } );
+const renewToken = (token) => {
+    return jwt.sign({login: this.validateToken(token)}, secretWord, {expiresIn: "2 hours"});
 };
 
 /**
@@ -28,12 +28,11 @@ const renewToken = ( token ) => {
  * @returns {string}
  */
 const validateToken = token => {
-	try {
-		return jwt.verify( token, secretWord );
-	}
-	catch ( e ) {
-		console.log( e );
-	}
+    try {
+        return jwt.verify(token, secretWord);
+    } catch (e) {
+        console.log(e);
+    }
 };
 
-module.exports = { generateToken, validateToken };
+module.exports = {generateToken, validateToken};

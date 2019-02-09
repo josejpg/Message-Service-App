@@ -1,34 +1,34 @@
 // Requires
-const express = require( 'express' );
-const bodyParser = require( 'body-parser' );
-const fs = require( 'fs' );
-const moment = require( 'moment' );
+const express = require('express');
+const bodyParser = require('body-parser');
+const fs = require('fs');
+const moment = require('moment');
 
 //Utils
-const myFS = require( '../utils/files' );
+const myFS = require('../utils/files');
 
 // Models
-const User = require( '../models/User' );
-const Message = require( '../models/Message' );
+const User = require('../models/User');
+const Message = require('../models/Message');
 
 // Token
-const Token = require( '../services/Token' );
+const Token = require('../services/Token');
 
 // Config
 const app = express();
-app.use( bodyParser.json( {
+app.use(bodyParser.json({
     limit: '50mb',
     extended: true,
-    type:'application/json'
-} ) );
-app.use( bodyParser.urlencoded( {
+    type: 'application/json'
+}));
+app.use(bodyParser.urlencoded({
     limit: '50mb',
     extended: true,
     parameterLimit: 50000,
-    type:'application/x-www-form-urlencoding'
-} ) );
+    type: 'application/x-www-form-urlencoding'
+}));
 const router = express.Router();
-const baseImagePath = './images/message';
+const baseImagePath = '/images/message';
 
 /**
  * POST: Messages.
@@ -42,70 +42,77 @@ const baseImagePath = './images/message';
  * received as a parameter. The JSON data you must send to the service is the text, image
  * (optional) and the current date when the message is sent.
  */
-router.post( '/:toUserId', ( req, res ) => {
+router.post('/:toUserId', (req, res) => {
 
-	const token = req.headers[ 'authorization' ];
-	const dataToken = Token.validateToken( token );
+    const token = req.headers['authorization'].replace('Bearer ', '');
+    const dataToken = Token.validateToken(token);
 
-	if ( dataToken ) {
+    if (dataToken) {
 
-		if ( dataToken.exp < new Date().getTime() ) {
-			const d = new moment();
-			const message = new Message();
-			let imagePath = `${ baseImagePath }/${ d.format( 'YYYY/MM/DD' ) }`;
-			myFS.mkdir( imagePath );
+        if (dataToken.exp < new Date().getTime()) {
+            const d = new moment();
+            const newMessage = new Message();
+            let imagePath = `${baseImagePath}/${d.format('YYYY/MM/DD')}`;
+            myFS.mkdir('.' + imagePath);
 
-			message.from = req.body.from;
-			message.to = req.params.toUserId;
-			message.message = req.body.message;
-			message.image = 'empty';
-			message.sent = new moment( req.body.sent, 'dd/MM/YYYY HH:mm:ss' );
+            newMessage.from = dataToken.login;
+            newMessage.to = req.params.toUserId;
+            newMessage.message = req.body.message;
+            newMessage.image = 'empty';
+            newMessage.sent = req.body.sent;
 
+            newMessage.save().then((result) => {
 
-			message.save().then( ( result ) => {
+                // First save user data, and later save de image with de _id as a image's name.
+                imagePath += `/${result._id}.jpg`;
+                fs.writeFileSync('.' + imagePath, Buffer.from(req.body.image, 'base64'));
+                newMessage.image = imagePath;
 
-				// First save user data, and later save de image with de _id as a image's name.
-				imagePath += `/${ result._id }.jpg`;
-				fs.writeFileSync( imagePath, Buffer.from( req.body.image, 'base64' ) );
-				message.image = imagePath;
+                newMessage.save().then(() => {
+                    Message
+                        .find({_id: newMessage._id})
+                        .populate('to')
+                        .populate('from')
+                        .then(dataMessage => {
+                            let message = {
+                                ok: true,
+                                message: dataMessage[0]
+                            };
+                            res.status(200).send(message);
+                        });
 
-				message.save().then( () => {
+                }).catch(err => {
 
-					let message = { ok: true, message: message };
-					res.status( 200 ).send( message );
+                    let data = {ok: false, error: "Image couldn't be registered"};
+                    console.log(req.body);
+                    console.log(err);
+                    res.status(400).send(data);
 
-				} ).catch( err => {
+                });
 
-					let data = { ok: false, error: "Image couldn't be registered" };
-					console.log( req.body );
-					console.log( err );
-					res.status( 400 ).send( data );
+            }).catch(err => {
 
-				} );
+                let data = {ok: false, error: "Message couldn't be sent"};
+                console.log(req.body);
+                console.log(err);
+                res.status(400).send(data);
 
-			} ).catch( err => {
+            });
 
-				let data = { ok: false, error: "Message couldn't be sent" };
-				console.log( req.body );
-				console.log( err );
-				res.status( 400 ).send( data );
+        } else {
 
-			} );
+            let data = {ok: false, error: "Token expired"};
+            res.status(403).send(data);
 
-		} else {
+        }
 
-			let data = { ok: false, error: "Token expired" };
-			res.status( 403 ).send( data );
+    } else {
 
-		}
+        let data = {ok: false, error: "Token is not correct"};
+        res.status(403).send(data);
 
-	} else {
-
-		let data = { ok: false, error: "Token is not correct" };
-		res.status( 403 ).send( data );
-
-	}
-} );
+    }
+});
 
 /**
  * DELETE: Messages.
@@ -114,55 +121,55 @@ router.post( '/:toUserId', ( req, res ) => {
  *
  * This service deletes the message matching the id received.
  */
-router.delete( '/:_id', ( req, res ) => {
+router.delete('/:_id', (req, res) => {
 
-	const token = req.headers[ 'authorization' ];
-	const dataToken = Token.validateToken( token );
+    const token = req.headers['authorization'].replace('Bearer ', '');
+    const dataToken = Token.validateToken(token);
 
-	if ( dataToken ) {
+    if (dataToken) {
 
-		if ( dataToken.exp < new Date().getTime() ) {
+        if (dataToken.exp < new Date().getTime()) {
 
-			Message.findById( req.params._id ).then( dataMessage => {
+            Message.findById(req.params._id).then(dataMessage => {
 
-				// Remove older image and save new data
-				myFS.rmdir( dataMessage.image );
-				dataMessage.delete( { "_id": req.params._id } ).then( () => {
+                // Remove older image and save new data
+                myFS.rmdir('.' + dataMessage.image);
+                dataMessage.delete({"_id": req.params._id}).then(() => {
 
-					let data = { ok: true };
-					res.status( 200 ).send( data );
+                    let data = {ok: true};
+                    res.status(200).send(data);
 
-				} ).catch( err => {
+                }).catch(err => {
 
-					let data = { ok: false, error: "Error while deleting. Try again in a few minutes." };
-					console.log( err );
-					res.status( 500 ).send( data );
+                    let data = {ok: false, error: "Error while deleting. Try again in a few minutes."};
+                    console.log(err);
+                    res.status(500).send(data);
 
-				} );
+                });
 
-			} ).catch( err => {
+            }).catch(err => {
 
-				let data = { ok: false, error: "Message not found" };
-				console.log( err );
-				res.status( 404 ).send( data );
+                let data = {ok: false, error: "Message not found"};
+                console.log(err);
+                res.status(404).send(data);
 
-			} );
+            });
 
-		} else {
+        } else {
 
-			let data = { ok: false, error: "Token expired" };
-			res.status( 403 ).send( data );
+            let data = {ok: false, error: "Token expired"};
+            res.status(403).send(data);
 
-		}
+        }
 
-	} else {
+    } else {
 
-		let data = { ok: false, error: "Token is not correct" };
-		res.status( 403 ).send( data );
+        let data = {ok: false, error: "Token is not correct"};
+        res.status(403).send(data);
 
-	}
+    }
 
-} );
+});
 
 /**
  * GET: Messages.
@@ -172,61 +179,50 @@ router.delete( '/:_id', ( req, res ) => {
  *
  * This service returns all messages that were sent to the user that is performing the request.
  */
-router.get( '/', ( req, res ) => {
+router.get('/', (req, res) => {
 
-	const token = req.headers[ 'authorization' ];
-	const dataToken = Token.validateToken( token );
+    const token = req.headers['authorization'].replace('Bearer ', '');
+    const dataToken = Token.validateToken(token);
 
-	if ( dataToken ) {
+    if (dataToken) {
 
-		if ( dataToken.exp < new Date().getTime() ) {
-			User
-				.find( { name: dataToken.login } )
-				.then( dataUser => {
+        if (dataToken.exp < new Date().getTime()) {
 
-					Message
-						.find( { from: dataUser[ 0 ]._id } )
-						.populate( 'to' )
-						.populate( 'from' )
-						.then( dataMessages => {
+            Message
+                .find({to: dataToken.login})
+                .populate('to')
+                .populate('from')
+                .then(dataMessages => {
 
-							let message = {
-								ok: true,
-								messages: dataMessages
-							};
-							res.status( 200 ).send( message );
+                    let message = {
+                        ok: true,
+                        messages: dataMessages
+                    };
 
-						} ).catch( err => {
+                    res.status(200).send(message);
 
-							let data = { ok: false, error: "Error recovering messages. Try again in a few minutes" };
-							console.log( err );
-							res.status( 500 ).send( data );
+                }).catch(err => {
 
-						} );
+                let data = {ok: false, error: "Error recovering messages. Try again in a few minutes"};
+                console.log(err);
+                res.status(500).send(data);
 
+            });
 
-				} ).catch( err => {
+        } else {
 
-					let data = { ok: false, error: "Error recovering messages. Try again in a few minutes" };
-					console.log( err );
-					res.status( 500 ).send( data );
+            let data = {ok: false, error: "Token expired"};
+            res.status(403).send(data);
 
-				} );
+        }
 
-		} else {
+    } else {
 
-			let data = { ok: false, error: "Token expired" };
-			res.status( 403 ).send( data );
+        let data = {ok: false, error: "Token is not correct"};
+        res.status(403).send(data);
 
-		}
+    }
 
-	} else {
-
-		let data = { ok: false, error: "Token is not correct" };
-		res.status( 403 ).send( data );
-
-	}
-
-} );
+});
 
 module.exports = router;
